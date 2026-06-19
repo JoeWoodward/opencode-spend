@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-spend",
+  "version": "0.1.0",
+  "description": "Displays total session spend (orchestrator + all subagents) in the opencode sidebar.",
+  "license": "MIT",
+  "author": "Joe Woodward",
+  "type": "module",
+  "exports": {
+    "./tui": "./src/tui.tsx"
+  },
+  "engines": {
+    "opencode": ">=1.17.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.17.0"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": ">=1.17.0",
+    "@opentui/solid": "^0.3.2",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
