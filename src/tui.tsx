@@ -1,3 +1,4 @@
+/** @jsxImportSource @opentui/solid */
 import type { TuiPlugin, TuiPluginModule, TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { createSignal, createMemo, onCleanup, Show, type Accessor, type Setter } from "solid-js"

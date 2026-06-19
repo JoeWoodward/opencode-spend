@@ -4,9 +4,12 @@
   "workspaces": {
     "": {
       "name": "opencode-spend",
+      "dependencies": {
+        "@opentui/solid": "^0.3.2",
+        "solid-js": "^1.8.0",
+      },
       "devDependencies": {
         "@opencode-ai/plugin": ">=1.17.0",
-        "@opentui/solid": "^0.3.2",
         "@types/node": "^22.0.0",
         "typescript": "^5.6.0",
       },

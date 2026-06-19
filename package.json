@@ -2,25 +2,50 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-spend",
   "version": "0.1.0",
-  "description": "Displays total session spend (orchestrator + all subagents) in the opencode sidebar.",
+  "description": "Displays total session spend (orchestrator + all nested subagents) in the opencode sidebar.",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "cost",
+    "spend",
+    "usage",
+    "subagents"
+  ],
   "license": "MIT",
   "author": "Joe Woodward",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/jwoodwardgl/opencode-spend.git"
+  },
+  "homepage": "https://gitlab.com/jwoodwardgl/opencode-spend",
+  "bugs": {
+    "url": "https://gitlab.com/jwoodwardgl/opencode-spend/-/issues"
+  },
   "exports": {
     "./tui": "./src/tui.tsx"
   },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "opencode": ">=1.17.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@opentui/solid": "^0.3.2",
+    "solid-js": "^1.8.0"
+  },
   "peerDependencies": {
     "@opencode-ai/plugin": ">=1.17.0"
   },
   "devDependencies": {
     "@opencode-ai/plugin": ">=1.17.0",
-    "@opentui/solid": "^0.3.2",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
   }
