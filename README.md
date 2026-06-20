@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/header.svg" alt="opencode-spend" width="800"/>
+  <img src="./assets/header.svg" alt="opencode-spend" width="100%"/>
 </p>
 
 <p align="center">
@@ -15,7 +15,7 @@
 ---
 
 <p align="center">
-  <img src="./assets/screenshot.png" alt="opencode-spend screenshot" width="700"/>
+  <img src="./assets/screenshot.png" alt="opencode-spend screenshot" width="100%"/>
 </p>
 
 ---
