@@ -63,6 +63,24 @@ bun install
 
 Restart opencode.
 
+## Configuration
+
+Optional. Create `~/.config/opencode/spend.json` to control where the total is shown:
+
+```json
+{
+  "location": "both"
+}
+```
+
+| `location` | Effect                                                          |
+| ---------- | --------------------------------------------------------------- |
+| `both`     | (default) Show in the sidebar **and** the prompt footer.        |
+| `sidebar`  | Show only the **Total Spend** section in the sidebar.           |
+| `prompt`   | Show only the compact total at the right of the prompt footer.  |
+
+If the file is missing or invalid, it defaults to `both`.
+
 ## How it works
 
 - The plugin registers into the `sidebar_content` slot.

@@ -2,7 +2,37 @@
 import type { TuiPlugin, TuiPluginModule, TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
 import { createSignal, createMemo, onCleanup, Show, type Accessor, type Setter } from "solid-js"
-import { appendFileSync } from "node:fs"
+import { appendFileSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { join } from "node:path"
+
+// User config at ~/.config/opencode/spend.json. Currently controls where the
+// total spend is displayed: the sidebar section, the prompt footer (right), or
+// both. Falls back to defaults if the file is missing or malformed.
+const CONFIG_PATH = join(homedir(), ".config", "opencode", "spend.json")
+
+type SpendLocation = "both" | "sidebar" | "prompt"
+
+type SpendConfig = {
+  location: SpendLocation
+}
+
+const DEFAULT_CONFIG: SpendConfig = {
+  location: "both",
+}
+
+function loadConfig(): SpendConfig {
+  try {
+    const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"))
+    const location = raw?.location
+    if (location === "both" || location === "sidebar" || location === "prompt") {
+      return { location }
+    }
+  } catch {
+    // fall back to defaults
+  }
+  return { ...DEFAULT_CONFIG }
+}
 
 // Lightweight perf instrumentation. Enabled when SPEND_DEBUG is set. Rather than
 // logging every event (which itself can dominate CPU), we aggregate counters and
@@ -202,15 +232,40 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   )
 }
 
+function PromptRight(props: { api: TuiPluginApi; session_id: string }) {
+  const theme = () => props.api.theme.current
+  const session = createMemo(() => props.api.state.session.get(props.session_id))
+
+  startTracker(props.api, props.session_id)
+  const tracker = getTracker(props.session_id)
+
+  const total = createMemo(() => (session()?.cost ?? 0) + tracker.cost())
+
+  return (
+    <Show when={total() > 0}>
+      <text fg={theme().textMuted}>
+        {money.format(total())} ({money.format(tracker.cost())})
+      </text>
+    </Show>
+  )
+}
+
 const tui: TuiPlugin = async (api) => {
-  api.slots.register({
-    order: 150,
-    slots: {
-      sidebar_content(_ctx, props) {
-        return <View api={api} session_id={props.session_id} />
-      },
-    },
-  })
+  const config = loadConfig()
+  const showSidebar = config.location === "both" || config.location === "sidebar"
+  const showPrompt = config.location === "both" || config.location === "prompt"
+
+  const slots: Parameters<typeof api.slots.register>[0]["slots"] = {}
+  if (showSidebar) {
+    slots.sidebar_content = (_ctx, props) => <View api={api} session_id={props.session_id} />
+  }
+  if (showPrompt) {
+    slots.session_prompt_right = (_ctx, props) => (
+      <PromptRight api={api} session_id={props.session_id} />
+    )
+  }
+
+  api.slots.register({ order: 150, slots })
 }
 
 const plugin: TuiPluginModule & { id: string } = {
