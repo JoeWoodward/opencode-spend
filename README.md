@@ -1,34 +1,30 @@
-# opencode-spend
+<p align="center">
+  <img src="./assets/header.svg" alt="opencode-spend" width="800"/>
+</p>
 
-A TUI plugin for [opencode](https://opencode.ai) that displays the **total session spend** — the orchestrator session plus every nested subagent — in the sidebar.
+<p align="center">
+  An <a href="https://opencode.ai">opencode</a> TUI plugin that tracks the <strong>true cost</strong> of your session — orchestrator and every nested subagent — live as tokens are consumed.
+</p>
 
-```
-Total Spend
-$15.29 ($12.24)
-```
+<p align="center">
+  <a href="https://www.npmjs.com/package/opencode-spend"><img src="https://img.shields.io/npm/v/opencode-spend?color=3fb950&label=npm&logo=npm&logoColor=white" alt="npm version"/></a>
+  <img src="https://img.shields.io/badge/opencode-%3E%3D1.17.0-58a6ff?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==&logoColor=white" alt="opencode version"/>
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="license"/>
+</p>
 
-The first figure is the combined total. The figure in parentheses is the portion spent by subagents. The total updates live as tokens are consumed, including while long-running subagents are still working.
+---
 
-## Why
+<p align="center">
+  <img src="./assets/screenshot.png" alt="opencode-spend screenshot" width="700"/>
+</p>
 
-opencode's built-in cost display only accounts for the session you're looking at. When a session spawns subagents, their spend is invisible. This plugin walks the entire subagent tree and surfaces the true cost of the work.
+---
 
-## Requirements
+## Installation
 
-- opencode `>= 1.17.0`
+Add `opencode-spend` to the `plugin` array in your TUI config:
 
-## Install
-
-This is a **TUI plugin**, so it is registered in your `tui.json`, not the regular `opencode.json` `plugin` array.
-
-The TUI config lives at:
-
-- `~/.config/opencode/tui.json` — global
-- `.opencode/tui.json` — project-level
-
-### From npm (recommended)
-
-Add the package name to the `plugin` array in your `tui.json`:
+**`~/.config/opencode/tui.json`** (global) or **`.opencode/tui.json`** (project)
 
 ```json
 {
@@ -37,15 +33,41 @@ Add the package name to the `plugin` array in your `tui.json`:
 }
 ```
 
-opencode installs the package (and its dependencies) with Bun at startup and caches it under `~/.cache/opencode/`. Restart opencode and the **Total Spend** section appears in the sidebar, between Context and MCP.
+Restart opencode — it installs the plugin automatically via Bun. The **Total Spend** section appears in the sidebar between Context and MCP, and a compact total appears at the right of the prompt footer.
 
-### From a local checkout
+---
 
-Clone the repository and reference it with a `file://` URL:
+## Configuration
+
+Create **`~/.config/opencode/spend.json`** to control where the total is displayed:
+
+```json
+{
+  "location": "both"
+}
+```
+
+| Value | Display |
+|---|---|
+| `both` | Sidebar **+** prompt footer *(default)* |
+| `sidebar` | Sidebar only |
+| `prompt` | Prompt footer only |
+
+---
+
+## Contributing
+
+Issues and PRs welcome at [gitlab.com/jwoodwardgl/opencode-spend](https://gitlab.com/jwoodwardgl/opencode-spend).
+
+### Install locally
 
 ```sh
 git clone https://gitlab.com/jwoodwardgl/opencode-spend.git
+cd opencode-spend
+bun install
 ```
+
+Reference it with a `file://` URL in your `tui.json`:
 
 ```json
 {
@@ -54,56 +76,6 @@ git clone https://gitlab.com/jwoodwardgl/opencode-spend.git
 }
 ```
 
-Then install its dependencies once:
+---
 
-```sh
-cd opencode-spend
-bun install
-```
-
-Restart opencode.
-
-## Configuration
-
-Optional. Create `~/.config/opencode/spend.json` to control where the total is shown:
-
-```json
-{
-  "location": "both"
-}
-```
-
-| `location` | Effect                                                          |
-| ---------- | --------------------------------------------------------------- |
-| `both`     | (default) Show in the sidebar **and** the prompt footer.        |
-| `sidebar`  | Show only the **Total Spend** section in the sidebar.           |
-| `prompt`   | Show only the compact total at the right of the prompt footer.  |
-
-If the file is missing or invalid, it defaults to `both`.
-
-## How it works
-
-- The plugin registers into the `sidebar_content` slot.
-- It listens for `message.updated` and `session.idle` events via the TUI event bus. These events are delivered for **descendant subagent sessions** as well as the focused session, which is what makes live subagent spend possible.
-- On each relevant event it recursively walks `session.children` to sum the cost of the whole subagent tree (with cycle and depth guards).
-- Refreshes are **coalesced**: at most one tree walk runs at a time, so a burst of streaming events cannot pile up work.
-
-## Debugging / performance
-
-The plugin ships with optional, low-overhead instrumentation that is disabled by default. Set the `SPEND_DEBUG` environment variable before launching opencode to enable it:
-
-```sh
-SPEND_DEBUG=1 opencode
-```
-
-It writes an aggregated, one-line-every-5-seconds summary to `/tmp/spend-debug.log`:
-
-```
-[metrics 5s] events=3 refreshes=3 coalesced=0 avgWalkMs=6.7 maxWalkMs=10.0 trackers=1
-```
-
-It also emits `[WARN]` lines if the refresh rate looks like a loop or a tree walk gets slow. When `SPEND_DEBUG` is unset there is no filesystem activity and no timer.
-
-## License
-
-[MIT](./LICENSE)
+<p align="center">MIT License · <a href="https://www.npmjs.com/package/opencode-spend">npmjs.com/package/opencode-spend</a> · <a href="https://gitlab.com/jwoodwardgl/opencode-spend">gitlab.com/jwoodwardgl/opencode-spend</a></p>
