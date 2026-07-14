@@ -37,6 +37,18 @@ Restart opencode — it installs the plugin automatically via Bun. The **Total S
 
 ---
 
+## Updating
+
+opencode does not automatically update installed plugins — it caches the installed version, so a new release of `opencode-spend` won't be picked up on its own. To force an update, clear the cached install and start a new session:
+
+```sh
+rm -rf ~/.cache/opencode/packages/opencode-spend@latest/
+```
+
+Then open a new opencode session. The TUI should briefly show `Loading plugins`, which means opencode is installing the latest version.
+
+---
+
 ## Configuration
 
 Create **`~/.config/opencode/spend.json`** to control where the total is displayed:

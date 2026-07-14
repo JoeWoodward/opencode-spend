@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import type { TuiPlugin, TuiPluginModule, TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { OpencodeClient } from "@opencode-ai/sdk/v2"
-import { createSignal, createMemo, onCleanup, Show, type Accessor, type Setter } from "solid-js"
+import { createSignal, createMemo, onCleanup, type Accessor, type Setter } from "solid-js"
 import { appendFileSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -219,16 +219,14 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const total = createMemo(() => (session()?.cost ?? 0) + tracker.cost())
 
   return (
-    <Show when={total() > 0}>
-      <box>
-        <text fg={theme().text}>
-          <b>Total Spend</b>
-        </text>
-        <text fg={theme().textMuted}>
-          {money.format(total())} ({money.format(tracker.cost())})
-        </text>
-      </box>
-    </Show>
+    <box>
+      <text fg={theme().text}>
+        <b>Total Spend</b>
+      </text>
+      <text fg={theme().textMuted}>
+        {money.format(total())} ({money.format(tracker.cost())})
+      </text>
+    </box>
   )
 }
 
@@ -242,11 +240,9 @@ function PromptRight(props: { api: TuiPluginApi; session_id: string }) {
   const total = createMemo(() => (session()?.cost ?? 0) + tracker.cost())
 
   return (
-    <Show when={total() > 0}>
-      <text fg={theme().textMuted}>
-        {money.format(total())} ({money.format(tracker.cost())})
-      </text>
-    </Show>
+    <text fg={theme().textMuted}>
+      {money.format(total())} ({money.format(tracker.cost())})
+    </text>
   )
 }
 
@@ -265,7 +261,7 @@ const tui: TuiPlugin = async (api) => {
     )
   }
 
-  api.slots.register({ order: 150, slots })
+  api.slots.register({ id: "spend", order: 150, slots } as unknown as Parameters<typeof api.slots.register>[0])
 }
 
 const plugin: TuiPluginModule & { id: string } = {

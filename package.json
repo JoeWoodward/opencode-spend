@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-spend",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Displays total session spend (orchestrator + all nested subagents) in the opencode sidebar.",
   "keywords": [
     "opencode",
@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "engines": {
-    "opencode": ">=1.17.0"
+    "opencode": ">=1.17.14"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -46,7 +46,8 @@
     "@opencode-ai/plugin": ">=1.17.0"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": ">=1.17.0",
+    "@opencode-ai/plugin": "^1.17.15",
+    "@opencode-ai/sdk": "^1.17.15",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
   }
