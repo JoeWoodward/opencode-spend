@@ -5,8 +5,8 @@ import type { Context } from "@opencode/plugin/tui/context"
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { createHydrator, type HydrationDeps, type HydrationOptions, type Hydrator, type ViewState } from "./hydration"
-import { formatLabel } from "./label"
+import { createHydrator, type HydrationDeps, type HydrationOptions, type Hydrator, type ViewState } from "./hydration.ts"
+import { formatLabel } from "./label.ts"
 
 export type SpendLocation = "both" | "sidebar" | "prompt"
 

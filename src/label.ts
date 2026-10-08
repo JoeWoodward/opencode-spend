@@ -1,4 +1,4 @@
-import type { HydrationStatus } from "./hydration"
+import type { HydrationStatus } from "./hydration.ts"
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",

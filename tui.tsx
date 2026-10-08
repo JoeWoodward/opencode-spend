@@ -5,4 +5,4 @@
 // for directory plugins, and a missing entry is skipped silently. This file
 // must therefore live at the package root. Published installs resolve the
 // same file through the package.json `./tui` export.
-export { default } from "./src/tui"
+export { default } from "./src/tui.tsx"

@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
 import type { Context } from "@opencode/plugin/tui/context"
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js"
-import type { Hydrator } from "./hydration"
+import { createEffect, createMemo, createSignal, onCleanup } from "solid-js"
+import type { Hydrator } from "./hydration.ts"
 import {
   createSpendHydrator,
   readLegacyLocation,
@@ -12,7 +12,7 @@ import {
   spendLabel,
   type SpendLocation,
   type SpendOptions,
-} from "./spend"
+} from "./spend.ts"
 
 // `version` turns the hydrator's change notifications into something Solid
 // can track.
@@ -53,31 +53,42 @@ function useSpendLabel(spend: Spend, sessionID: () => string | undefined): () =>
   })
 }
 
+// JSX rules: installed from npm, this file lives under node_modules, where
+// OpenTUI skips Solid's JSX compiler and Bun compiles JSX with the automatic
+// runtime instead. Every `{expression}` is then evaluated once. To stay
+// reactive in both a file:// and an npm install:
+//   - pass accessors as children (`{label}`, never `{label()}`);
+//   - wrap conditional markup in a function child, not `<Show when={...}>`.
+// Relative imports also need explicit extensions, or OpenTUI cannot swap
+// `solid-js` for the host's copy and the plugin gets a disconnected one.
+
 function SidebarView(props: { spend: Spend; sessionID: string }) {
   const label = useSpendLabel(props.spend, () => props.sessionID)
+  const visible = createMemo(() => label() !== undefined)
   const theme = props.spend.context.theme
 
   return (
-    <Show when={label()}>
-      <box>
-        <text fg={theme.text.base}>
-          <b>Total Spend</b>
-        </text>
-        <text fg={theme.text.muted}>{label()}</text>
-      </box>
-    </Show>
+    <>
+      {() =>
+        visible() && (
+          <box>
+            <text fg={theme.text.base}>
+              <b>Total Spend</b>
+            </text>
+            <text fg={theme.text.muted}>{label}</text>
+          </box>
+        )
+      }
+    </>
   )
 }
 
 function PromptView(props: { spend: Spend; sessionID?: string }) {
   const label = useSpendLabel(props.spend, () => props.sessionID)
+  const visible = createMemo(() => label() !== undefined)
   const theme = props.spend.context.theme
 
-  return (
-    <Show when={label()}>
-      <text fg={theme.text.muted}>{label()}</text>
-    </Show>
-  )
+  return <>{() => visible() && <text fg={theme.text.muted}>{label}</text>}</>
 }
 
 export type PluginOverrides = {
