@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test"
 import { createHydrator, createLimiter, type HydrationDeps, type HydrationOptions, type Hydrator } from "../src/hydration"
-import { formatLabel } from "../src/label"
 
 type Session = { id: string; parentID?: string }
 
@@ -348,16 +347,5 @@ describe("hydrator", () => {
     await waitFor(() => b.state("root").status === "ready", "second ready")
     expect(second.cache.size).toBe(sessions.length)
     b.dispose()
-  })
-})
-
-describe("formatLabel", () => {
-  test("keeps the plain format when complete", () => {
-    expect(formatLabel({ total: 1.23, subagents: 0.45 }, "ready")).toBe("$1.23 ($0.45)")
-  })
-
-  test("marks incomplete totals", () => {
-    expect(formatLabel({ total: 1.23, subagents: 0.45 }, "loading")).toBe("$1.23 ($0.45) …")
-    expect(formatLabel({ total: 1.23, subagents: 0.45 }, "error")).toBe("$1.23 ($0.45) ?")
   })
 })

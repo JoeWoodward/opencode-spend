@@ -1,19 +1,16 @@
-import { afterAll, describe, expect, test } from "bun:test"
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import type { HydrationStatus } from "../src/hydration"
-import { formatLabel } from "../src/label"
-import {
-  createSpendHydrator,
-  readLegacyLocation,
-  resolveLocation,
-  showsPrompt,
-  showsSidebar,
-  spendLabel,
-  type SpendOptions,
-} from "../src/spend"
+import { describe, expect, test } from "bun:test"
+import type { Context } from "@opencode/plugin/tui/context"
+import type { HydrationStatus, ViewState } from "../src/hydration"
+import { formatExact, MARKERS } from "../src/label"
+import { createSpendHydrator, createStoredLedger, familySpend, resolveConfig, type SpendOptions } from "../src/spend"
 import { createFakeContext, fastSleep, tick, waitFor, type FakeWorld, type Row } from "./fake-context"
+
+// `$total ($subagents)` plus the hydration marker: a compact way to assert
+// both the family total and its completeness.
+function spendLabel(session: Pick<Context["data"]["session"], "root" | "cost" | "get">, id: string, state: ViewState) {
+  const spend = familySpend(session, id, state)
+  return `${formatExact(spend.total)} (${formatExact(spend.subagents)})${MARKERS[state.status]}`
+}
 
 const fast: SpendOptions = { baseDelayMs: 10, maxDelayMs: 40, sleep: fastSleep }
 
@@ -85,12 +82,6 @@ describe("spend totals", () => {
     expect(spendLabel(session, "r", { status: "ready", root: "r" })).toBe("$0.50 ($0.00)")
   })
 
-  test("rounds fractional costs to cents", () => {
-    expect(formatLabel({ total: 0.1 + 0.2, subagents: 0.3 - 0.1 }, "ready")).toBe("$0.30 ($0.20)")
-    expect(formatLabel({ total: 1.234, subagents: 0.004 }, "ready")).toBe("$1.23 ($0.00)")
-    expect(formatLabel({ total: 1.236, subagents: 0.996 }, "ready")).toBe("$1.24 ($1.00)")
-    expect(formatLabel({ total: 1234.5, subagents: 0 }, "ready")).toBe("$1,234.50 ($0.00)")
-  })
 
   test("marks the label by hydration status", () => {
     const world = createFakeContext([{ id: "solo", cost: 2 }], { preloaded: ["solo"] })
@@ -103,45 +94,6 @@ describe("spend totals", () => {
     for (const [status, label] of Object.entries(markers)) {
       expect(spendLabel(world.session, "solo", { status: status as HydrationStatus, root: "solo" })).toBe(label)
     }
-  })
-})
-
-describe("location option", () => {
-  const dir = mkdtempSync(join(tmpdir(), "opencode-spend-"))
-  afterAll(() => rmSync(dir, { recursive: true, force: true }))
-  const file = (name: string, content: string) => {
-    const path = join(dir, name)
-    writeFileSync(path, content)
-    return path
-  }
-
-  test("a valid option wins without reading the legacy file", () => {
-    let reads = 0
-    const legacy = () => (reads++, "sidebar" as const)
-    expect(resolveLocation({ location: "prompt" }, legacy)).toBe("prompt")
-    expect(resolveLocation({ location: "sidebar" }, legacy)).toBe("sidebar")
-    expect(resolveLocation({ location: "both" }, legacy)).toBe("both")
-    expect(reads).toBe(0)
-  })
-
-  test("an invalid or missing option falls back to the legacy file, then to both", () => {
-    expect(resolveLocation({ location: "footer" }, () => "prompt")).toBe("prompt")
-    expect(resolveLocation({}, () => "sidebar")).toBe("sidebar")
-    expect(resolveLocation({ location: 3 }, () => undefined)).toBe("both")
-  })
-
-  test("reads the legacy file defensively", () => {
-    expect(readLegacyLocation(file("valid.json", '{"location":"prompt"}'))).toBe("prompt")
-    expect(readLegacyLocation(file("invalid.json", '{"location":"footer"}'))).toBeUndefined()
-    expect(readLegacyLocation(file("malformed.json", "{"))).toBeUndefined()
-    expect(readLegacyLocation(file("null.json", "null"))).toBeUndefined()
-    expect(readLegacyLocation(join(dir, "missing.json"))).toBeUndefined()
-  })
-
-  test("maps a location to its slots", () => {
-    expect([showsSidebar("both"), showsPrompt("both")]).toEqual([true, true])
-    expect([showsSidebar("sidebar"), showsPrompt("sidebar")]).toEqual([true, false])
-    expect([showsSidebar("prompt"), showsPrompt("prompt")]).toEqual([false, true])
   })
 })
 
@@ -220,7 +172,7 @@ describe("live updates after hydration", () => {
   })
 })
 
-describe("simultaneous sidebar and footer", () => {
+describe("two sidebars on one session family", () => {
   async function single() {
     const world = createFakeContext(family(), { preloaded: ["root"] })
     const spend = setup(world)
@@ -234,14 +186,14 @@ describe("simultaneous sidebar and footer", () => {
     const baseline = await single()
     const world = createFakeContext(family(), { preloaded: ["root"] })
     const spend = setup(world)
-    // Each view acquires its session, as `useSpendLabel` does.
-    const releaseSidebar = spend.hydrator.acquire("root")
-    const releaseFooter = spend.hydrator.acquire("root")
+    // Each sidebar acquires its session, as `useModel` does.
+    const releaseFirst = spend.hydrator.acquire("root")
+    const releaseSecond = spend.hydrator.acquire("root")
     await ready(spend, "root")
     expect({ list: world.calls.list, sync: world.calls.sync }).toEqual(baseline)
     expect(spend.label("root")).toBe("$1.88 ($0.88)")
-    releaseSidebar()
-    releaseFooter()
+    releaseFirst()
+    releaseSecond()
     spend.dispose()
   })
 
@@ -250,18 +202,18 @@ describe("simultaneous sidebar and footer", () => {
     const world = createFakeContext(family(), { preloaded: ["root"] })
     const resume = world.pauseAll()
     const spend = setup(world)
-    const releaseSidebar = spend.hydrator.acquire("root")
-    const releaseFooter = spend.hydrator.acquire("root")
+    const releaseFirst = spend.hydrator.acquire("root")
+    const releaseSecond = spend.hydrator.acquire("root")
     await tick()
-    releaseSidebar()
+    releaseFirst()
     // Releasing twice is harmless.
-    releaseSidebar()
+    releaseFirst()
     resume()
     await ready(spend, "root")
     expect({ list: world.calls.list, sync: world.calls.sync }).toEqual(baseline)
     world.setCost("c3", 0.75)
     expect(spend.label("root")).toBe("$2.38 ($1.38)")
-    releaseFooter()
+    releaseSecond()
     spend.dispose()
   })
 })
@@ -288,5 +240,178 @@ describe("large family", () => {
     expect(world.calls.sync).toBe(300)
     expect(world.calls.list).toBe(3 + 20 * 2 + 280)
     spend.dispose()
+  })
+})
+
+describe("stored ledger", () => {
+  const done = (id: string, agent: string, cost: number) => ({
+    id,
+    agent,
+    cost,
+    model: { id: "opus", providerID: "p" },
+    tokens: { input: 10, output: 5, reasoning: 0, cache: { read: 100, write: 0 } },
+    time: { completed: 1 },
+  })
+  const config = { maxSavedSessions: 200 }
+
+  test("step.ended catches the ledger up and records context usage", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1)] },
+    })
+    const stored = createStoredLedger(world.context, () => {}, config, { persistDelayMs: 0 })
+    stored.ledger.acquire("root")
+    await waitFor(() => stored.ledger.entry("root")?.cost === 1, "first read")
+
+    world.addMessage("root", done("m2", "build", 2))
+    world.emit("session.step.ended", { sessionID: "root", assistantMessageID: "m2", tokens: done("m2", "build", 2).tokens })
+    await waitFor(() => stored.ledger.entry("root")?.cost === 3, "catch-up")
+    expect(stored.ledger.entry("root")?.byAgent).toEqual({ plan: 1, build: 2 })
+    expect(stored.usage.get("root")?.tokens).toBe(115)
+    stored.dispose()
+  })
+
+  test("a restart resumes from storage and reads only the new messages", async () => {
+    const storage = new Map<string, unknown>()
+    const messages = { root: [done("m1", "plan", 1), done("m2", "build", 2)] }
+    const first = createFakeContext([{ id: "root", cost: 10 }], { preloaded: ["root"], messages, storage })
+    const a = createStoredLedger(first.context, () => {}, config, { persistDelayMs: 0 })
+    a.ledger.acquire("root")
+    await waitFor(() => a.ledger.entry("root")?.cost === 3, "first read")
+    a.dispose()
+
+    const second = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [...messages.root, done("m3", "build", 4)] },
+      storage,
+    })
+    const b = createStoredLedger(second.context, () => {}, config, { persistDelayMs: 0 })
+    b.ledger.acquire("root")
+    // The saved entry holds only settled messages; m2 was provisional.
+    expect(b.ledger.entry("root")?.cost).toBe(1)
+    await waitFor(() => b.ledger.entry("root")?.cost === 7, "resumed")
+    expect(b.ledger.entry("root")).toMatchObject({ head: "m2", count: 3 })
+    // A single page, stopping at the saved head.
+    expect(second.calls.messages.length).toBe(1)
+    b.dispose()
+  })
+
+  test("pages with a cursor alone, as the server requires", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1), done("m2", "build", 2), done("m3", "build", 4)] },
+    })
+    const stored = createStoredLedger(world.context, () => {}, config, {
+      persistDelayMs: 0,
+      ledger: { fullPage: 1, maxAttempts: 1 },
+    })
+    stored.ledger.acquire("root")
+    await waitFor(() => stored.ledger.entry("root")?.count === 3, "all pages")
+    expect(stored.ledger.entry("root")?.byAgent).toEqual({ plan: 1, build: 6 })
+    expect(world.calls.messages.map((call) => call.cursor)).toEqual([undefined, "1", "2"])
+    // The cursor does not carry the type filter, so every page repeats it.
+    expect(world.calls.messages.every((call) => call.type === "assistant")).toBe(true)
+    stored.dispose()
+  })
+
+  test("server.connected retries ledger reads that gave up offline", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1)] },
+    })
+    const client = world.context.client.message as { list: (...args: unknown[]) => Promise<unknown> }
+    const list = client.list
+    let offline = true
+    client.list = (...args) => (offline ? Promise.reject(new Error("offline")) : list(...args))
+    const stored = createStoredLedger(world.context, () => {}, config, {
+      persistDelayMs: 0,
+      sleep: fastSleep,
+      ledger: { maxAttempts: 2, baseDelayMs: 1 },
+    })
+    stored.ledger.acquire("root")
+    for (let i = 0; i < 20; i++) await tick()
+    expect(stored.ledger.entry("root")).toBeUndefined()
+    offline = false
+    world.emit("server.connected")
+    await waitFor(() => stored.ledger.entry("root")?.cost === 1, "recovered")
+    stored.dispose()
+  })
+
+  test("step.failed catches the ledger up", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1)] },
+    })
+    const stored = createStoredLedger(world.context, () => {}, config, { persistDelayMs: 0 })
+    stored.ledger.acquire("root")
+    await waitFor(() => stored.ledger.entry("root")?.cost === 1, "first read")
+    world.addMessage("root", { ...done("m2", "build", 0.5), error: { type: "provider" } })
+    world.emit("session.step.failed", { sessionID: "root", assistantMessageID: "m2", error: { type: "provider" } })
+    await waitFor(() => stored.ledger.entry("root")?.cost === 1.5, "failed step counted")
+    stored.dispose()
+  })
+
+  test("context usage keeps the model a step started with when the selection changes mid-step", () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], { preloaded: ["root"] })
+    const stored = createStoredLedger(world.context, () => {}, config, { persistDelayMs: 0 })
+    const opus = { id: "opus", providerID: "p" }
+    const haiku = { id: "haiku", providerID: "p" }
+    world.emit("session.step.started", { sessionID: "root", assistantMessageID: "m1", model: opus })
+    // The user picks another model while m1 runs.
+    ;(world.cache.get("root") as { model?: unknown }).model = haiku
+    world.emit("session.step.ended", { sessionID: "root", assistantMessageID: "m1", tokens: done("m1", "plan", 1).tokens })
+    expect(stored.usage.get("root")).toEqual({ tokens: 115, model: opus })
+    // Without a matching start, the session's model is the best guess.
+    world.emit("session.step.ended", { sessionID: "root", assistantMessageID: "m2", tokens: done("m2", "plan", 1).tokens })
+    expect(stored.usage.get("root")?.model).toEqual(haiku)
+    stored.dispose()
+  })
+
+  test("writes are debounced and flushed on dispose", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1)] },
+    })
+    const stored = createStoredLedger(world.context, () => {}, config, { persistDelayMs: 60_000 })
+    stored.ledger.acquire("root")
+    await waitFor(() => stored.ledger.entry("root") !== undefined, "read")
+    const saved = () => (world.storage.get("ledger") as { sessions: Record<string, unknown> }).sessions
+    expect(saved().root).toBeUndefined()
+    stored.dispose()
+    expect(saved().root).toBeDefined()
+  })
+
+  test("session.deleted drops the saved entry", async () => {
+    const world = createFakeContext([{ id: "root", cost: 10 }], {
+      preloaded: ["root"],
+      messages: { root: [done("m1", "plan", 1)] },
+    })
+    const stored = createStoredLedger(world.context, () => {}, config, { persistDelayMs: 0 })
+    stored.ledger.acquire("root")
+    await waitFor(() => stored.ledger.entry("root") !== undefined, "read")
+    const saved = () => (world.storage.get("ledger") as { sessions: Record<string, unknown> }).sessions
+    expect(saved().root).toBeDefined()
+    world.emit("session.deleted", { sessionID: "root" })
+    expect(saved().root).toBeUndefined()
+    stored.dispose()
+  })
+})
+
+describe("resolveConfig", () => {
+  test("defaults", () => {
+    expect(resolveConfig({})).toMatchObject({ barWidth: 24, maxSavedSessions: 200, compactionMarker: undefined })
+  })
+
+  test("validates options", () => {
+    expect(resolveConfig({ barWidth: 30, compactionMarker: 0.8, maxSavedSessions: 10 })).toMatchObject({
+      barWidth: 30,
+      compactionMarker: 0.8,
+      maxSavedSessions: 10,
+    })
+    expect(resolveConfig({ barWidth: 2, compactionMarker: 80, maxSavedSessions: -1 })).toMatchObject({
+      barWidth: 24,
+      compactionMarker: undefined,
+      maxSavedSessions: 200,
+    })
   })
 })

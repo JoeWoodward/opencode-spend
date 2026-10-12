@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-spend",
-  "version": "0.2.1",
-  "description": "Displays total session spend (orchestrator + all nested subagents) in the OpenCode sidebar and prompt footer.",
+  "version": "1.0.0",
+  "description": "Context window bar and total session spend (orchestrator + all nested subagents) with per-agent, per-model and per-subagent breakdowns in the OpenCode sidebar.",
   "keywords": [
     "opencode",
     "opencode-plugin",
@@ -10,7 +10,10 @@
     "cost",
     "spend",
     "usage",
-    "subagents"
+    "subagents",
+    "context",
+    "context-window",
+    "sidebar"
   ],
   "license": "MIT",
   "author": "Joe Woodward",
@@ -37,7 +40,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test && bun run test:render",
+    "test:render": "bun test --preload @opentui/solid/preload ./test/render/sidebar.render.ts && bun test --preload ./test/render/npm-preload.ts ./test/render/sidebar.render.ts"
   },
   "peerDependencies": {
     "@opencode/plugin": ">=2.0.9",
