@@ -154,6 +154,8 @@ Pass options with the object form in `cli.json`:
 
 1.0 removes the prompt footer total (OpenCode V2 shows the total there itself) and with it the `location` option and the V1 `~/.config/opencode/spend.json` file. Both are ignored if still present.
 
+OpenCode V2 loads CLI plugins from `cli.json`, not the V1 `~/.config/opencode/tui.json`. Remove `opencode-spend` from the `plugin` list in `tui.json` and add it to `plugins` in `cli.json` as shown in [Installation](#installation).
+
 ---
 
 ## Updating
@@ -162,9 +164,25 @@ To get a specific release, pin the version in `cli.json`:
 
 ```json
 {
-  "plugins": ["*", "-opencode.sidebar.context", "opencode-spend@1.0.0"]
+  "plugins": ["*", "-opencode.sidebar.context", "opencode-spend@1.0.1"]
 }
 ```
+
+### Sidebar missing after upgrading from 0.x
+
+OpenCode can keep using a copy of the plugin it cached earlier, even after a newer version is published. If the sidebar doesn't appear after upgrading, check which version is cached:
+
+```sh
+grep -h '"version"' ~/.cache/opencode/npm/opencode-spend@latest/*/node_modules/opencode-spend/package.json
+```
+
+If it shows a `0.x` version, delete the cached copy and restart OpenCode:
+
+```sh
+rm -rf ~/.cache/opencode/npm/opencode-spend@latest
+```
+
+Pinning a version as shown above also avoids this.
 
 ---
 

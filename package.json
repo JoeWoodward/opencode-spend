@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-spend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Context window bar and total session spend (orchestrator + all nested subagents) with per-agent, per-model and per-subagent breakdowns in the OpenCode sidebar.",
   "keywords": [
     "opencode",
